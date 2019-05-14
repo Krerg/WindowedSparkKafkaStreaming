@@ -19,8 +19,13 @@ object SparkStreamingKafkaConsumer {
 
   def main(args: Array[String]): Unit = {
 
+    val conf = new Configuration(args)
+    conf.verify()
+
+    conf.inputKafkaTopic()
+
     val kafkaParams = Map[String, Object](
-      "bootstrap.servers" -> args(0),
+      "bootstrap.servers" -> conf.bootstrapServer(),
       "key.deserializer" -> classOf[StringDeserializer],
       "value.deserializer" -> classOf[MessageDeserializer],
       "group.id" -> "kafkaStreaming"
@@ -34,7 +39,7 @@ object SparkStreamingKafkaConsumer {
       new StreamingContext(sparkConf, Milliseconds(20))
     })
 
-    val topics = Array("message")
+    val topics = Array(conf.inputKafkaTopic())
 
     val stream = KafkaUtils.createDirectStream[String, Message](
       ssc,
@@ -49,7 +54,11 @@ object SparkStreamingKafkaConsumer {
       map1 ++ map2.map { case (k, v) => k -> (v + map1.getOrElse(k, 0)) }
     },
       Minutes(60),
-      Minutes(60))
+      Minutes(60)).foreachRDD(rdd => {
+      rdd.foreach(map => {
+        //send to kafka thats all))
+      })
+    })
 
     ssc.start()
     ssc.awaitTermination()
