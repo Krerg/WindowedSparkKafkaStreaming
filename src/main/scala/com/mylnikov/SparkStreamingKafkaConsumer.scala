@@ -4,11 +4,13 @@ package com.mylnikov
 import com.mylnikov.model.Message
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.SparkConf
-
+import org.apache.spark.sql.expressions.Window
 import org.apache.spark.streaming.kafka010.KafkaUtils
 import org.apache.spark.streaming.{Milliseconds, Minutes, StreamingContext}
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
 import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.json4s.JObject
+import org.json4s.jackson.JsonMethods
 
 object SparkStreamingKafkaConsumer {
 
@@ -31,14 +33,35 @@ object SparkStreamingKafkaConsumer {
       "group.id" -> "kafkaStreaming"
     )
 
-    val sparkConf = new SparkConf()
-      .setAppName("KafkaStreaming")
-      //comment this in case deployment
-      .setMaster("local[*]")
-    ssc = StreamingContext.getOrCreate("dir", () => {
-      new StreamingContext(sparkConf, Milliseconds(20))
-    })
+    val spark = org.apache.spark.sql.SparkSession.builder
+            .master("local[2]")
+      .appName("SparkKafkaConsumer")
+      .getOrCreate
 
+    val df = spark
+      .readStream
+      .format("kafka")
+      .option("kafka.bootstrap.servers", "host1:port1,host2:port2")
+      .option("subscribe", "topic1")
+      .load()
+
+    import spark.sqlContext.implicits._
+    import org.apache.spark.sql.functions._
+    val getText: String => String = JsonMethods.parse(_).asInstanceOf[JObject].values.getOrElse("text", "").toString
+    val getTextUdf = udf(getText)
+
+    val messageProcessor = new MessageProcessor()
+
+    val window = Window.partitionBy("ProductType").orderBy("Quantity")
+
+    df.selectExpr("CAST(key AS STRING)", "CAST(timestamp AS LONG)")
+      .withWatermark("timestamp", "5 minutes")
+      .withColumn("value", getTextUdf('value))
+      .map(row => {messageProcessor.process(row.getAs[String]("value")) })
+      .
+      .groupBy(
+      window('timestamp, "60 minutes"),
+    ).
     val topics = Array(conf.inputKafkaTopic())
 
     val stream = KafkaUtils.createDirectStream[String, Message](
@@ -46,7 +69,7 @@ object SparkStreamingKafkaConsumer {
       PreferConsistent,
       Subscribe[String, Message](topics, kafkaParams)
     )
-    val messageProcessor = new MessageProcessor()
+
 
     stream.window(Minutes(60)).map(record => {
       messageProcessor.process(record.value().text)
