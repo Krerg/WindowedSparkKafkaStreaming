@@ -1,23 +1,10 @@
 package com.mylnikov
 
-
-import com.mylnikov.model.Message
 import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.expressions.Window
-import org.apache.spark.streaming.kafka010.KafkaUtils
-import org.apache.spark.streaming.{Milliseconds, Minutes, StreamingContext}
-import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
-import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.json4s.JObject
 import org.json4s.jackson.JsonMethods
 
 object SparkStreamingKafkaConsumer {
-
-  /**
-    * For testing purposes.
-    */
-  var ssc: StreamingContext = _
 
   def main(args: Array[String]): Unit = {
 
@@ -38,6 +25,9 @@ object SparkStreamingKafkaConsumer {
       .appName("SparkKafkaConsumer")
       .getOrCreate
 
+    spark.udf.register("gm", new CountBigDataWordsUDAF)
+
+
     val df = spark
       .readStream
       .format("kafka")
@@ -52,39 +42,14 @@ object SparkStreamingKafkaConsumer {
 
     val messageProcessor = new MessageProcessor()
 
-    val window = Window.partitionBy("ProductType").orderBy("Quantity")
+    val udaf = new CountBigDataWordsUDAF
 
-    df.selectExpr("CAST(key AS STRING)", "CAST(timestamp AS LONG)")
+    df.selectExpr("CAST(value AS STRING)", "CAST(timestamp AS LONG)")
       .withWatermark("timestamp", "5 minutes")
       .withColumn("value", getTextUdf('value))
-      .map(row => {messageProcessor.process(row.getAs[String]("value")) })
-      .
-      .groupBy(
-      window('timestamp, "60 minutes"),
-    ).
-    val topics = Array(conf.inputKafkaTopic())
+      .groupBy(window('timestamp, "60 minutes"))
+      .agg(udaf('value))
 
-    val stream = KafkaUtils.createDirectStream[String, Message](
-      ssc,
-      PreferConsistent,
-      Subscribe[String, Message](topics, kafkaParams)
-    )
-
-
-    stream.window(Minutes(60)).map(record => {
-      messageProcessor.process(record.value().text)
-    }).reduceByWindow((map1, map2) => {
-      map1 ++ map2.map { case (k, v) => k -> (v + map1.getOrElse(k, 0)) }
-    },
-      Minutes(60),
-      Minutes(60)).foreachRDD(rdd => {
-      rdd.foreach(map => {
-        //send to kafka thats all))
-      })
-    })
-
-    ssc.start()
-    ssc.awaitTermination()
 
 
   }
