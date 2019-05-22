@@ -13,13 +13,6 @@ object SparkStreamingKafkaConsumer {
 
     conf.inputKafkaTopic()
 
-    val kafkaParams = Map[String, Object](
-      "bootstrap.servers" -> conf.bootstrapServer(),
-      "key.deserializer" -> classOf[StringDeserializer],
-      "value.deserializer" -> classOf[MessageDeserializer],
-      "group.id" -> "kafkaStreaming"
-    )
-
     val spark = org.apache.spark.sql.SparkSession.builder
             .master("local[2]")
       .appName("SparkKafkaConsumer")
@@ -31,8 +24,8 @@ object SparkStreamingKafkaConsumer {
     val df = spark
       .readStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", "host1:port1,host2:port2")
-      .option("subscribe", "topic1")
+      .option("kafka.bootstrap.servers", conf.bootstrapServer())
+      .option("subscribe", conf.inputKafkaTopic())
       .load()
 
     import spark.sqlContext.implicits._
@@ -48,7 +41,7 @@ object SparkStreamingKafkaConsumer {
       .withWatermark("timestamp", "5 minutes")
       .withColumn("value", getTextUdf('value))
       .groupBy(window('timestamp, "60 minutes"))
-      .agg(udaf('value))
+      .agg(udaf('value)).
 
 
 
