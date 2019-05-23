@@ -20,7 +20,6 @@ object SparkStreamingKafkaConsumer {
 
     spark.udf.register("gm", new CountBigDataWordsUDAF)
 
-
     val df = spark
       .readStream
       .format("kafka")
@@ -41,9 +40,6 @@ object SparkStreamingKafkaConsumer {
       .withWatermark("timestamp", "5 minutes")
       .withColumn("value", getTextUdf('value))
       .groupBy(window('timestamp, "60 minutes"))
-      .agg(udaf('value)).
-
-
-
+      .agg(udaf('value)).show()
   }
 }

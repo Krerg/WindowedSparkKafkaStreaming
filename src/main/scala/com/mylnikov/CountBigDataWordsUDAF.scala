@@ -41,6 +41,6 @@ class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
   }
 
   override def evaluate(buffer: Row): Any = {
-
+    buffer.getMap[String, Int](0).map { case (k, v) => k + ":" + v }.mkString("|")
   }
 }
