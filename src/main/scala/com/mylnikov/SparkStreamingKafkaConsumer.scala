@@ -1,6 +1,7 @@
 package com.mylnikov
 
 import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.spark.sql.Row
 import org.json4s.JObject
 import org.json4s.jackson.JsonMethods
 
@@ -14,18 +15,25 @@ object SparkStreamingKafkaConsumer {
     conf.inputKafkaTopic()
 
     val spark = org.apache.spark.sql.SparkSession.builder
-            .master("local[2]")
+            .master("local[*]")
       .appName("SparkKafkaConsumer")
-      .getOrCreate
+      .getOrCreate()
 
     spark.udf.register("gm", new CountBigDataWordsUDAF)
+
+
 
     val df = spark
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", conf.bootstrapServer())
       .option("subscribe", conf.inputKafkaTopic())
+      .option("startingOffsets", "earliest")
       .load()
+
+    val consoleOutput = df.writeStream
+
+
 
     import spark.sqlContext.implicits._
     import org.apache.spark.sql.functions._
@@ -35,11 +43,18 @@ object SparkStreamingKafkaConsumer {
     val messageProcessor = new MessageProcessor()
 
     val udaf = new CountBigDataWordsUDAF
-
-    df.selectExpr("CAST(value AS STRING)", "CAST(timestamp AS LONG)")
+    spark.udf.register("df", udaf)
+    df.selectExpr("CAST(value AS STRING)", "CAST(timestamp AS TIMESTAMP)")
       .withWatermark("timestamp", "5 minutes")
       .withColumn("value", getTextUdf('value))
-      .groupBy(window('timestamp, "60 minutes"))
-      .agg(udaf('value)).show()
+      .groupBy(window('timestamp, "20 second"))
+      .agg(udaf('value))
+      .as("Output")
+      .writeStream.outputMode("update")
+      .format("console")
+      .start().awaitTermination()
+
   }
+
+
 }
