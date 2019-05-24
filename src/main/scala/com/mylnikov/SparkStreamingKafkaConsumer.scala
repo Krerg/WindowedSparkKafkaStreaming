@@ -51,7 +51,9 @@ object SparkStreamingKafkaConsumer {
       .agg(udaf('value))
       .as("Output")
       .writeStream.outputMode("update")
-      .format("console")
+      .format("kafka")
+      .option("kafka.bootstrap.servers", conf.bootstrapServer())
+      .option("topic", conf.outputKafkaTopic())
       .start().awaitTermination()
 
   }
