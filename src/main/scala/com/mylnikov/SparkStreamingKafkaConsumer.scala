@@ -1,7 +1,5 @@
 package com.mylnikov
 
-import org.apache.kafka.common.serialization.StringDeserializer
-import org.apache.spark.sql.Row
 import org.json4s.JObject
 import org.json4s.jackson.JsonMethods
 
@@ -27,6 +25,7 @@ object SparkStreamingKafkaConsumer {
       .option("kafka.bootstrap.servers", conf.bootstrapServer())
       .option("subscribe", conf.inputKafkaTopic())
       .option("startingOffsets", "earliest")
+      .option("checkpointLocation", "/d/checkpoint")
       .load()
 
     import spark.sqlContext.implicits._
@@ -37,17 +36,22 @@ object SparkStreamingKafkaConsumer {
     val messageProcessor = new MessageProcessor()
 
     val udaf = new CountBigDataWordsUDAF
-    spark.udf.register("df", udaf)
+    spark.udf.register("udaf", udaf)
     df.selectExpr("CAST(value AS STRING)", "CAST(timestamp AS TIMESTAMP)")
       .withWatermark("timestamp", "5 minutes")
       .withColumn("value", getTextUdf('value))
+
       .groupBy(window('timestamp, "20 second"))
-      .agg(udaf('value))
-      .as("Output")
+      .agg(udaf('value).as("WordsCount"))
+      .selectExpr("CAST(window as STRING)", "WordsCount")
+      .withColumn("WordsCount", concat('WordsCount, lit(" Window:"), 'window))
+      .selectExpr("CAST(window as String) as key","CAST(WordsCount AS STRING) as value")
+
       .writeStream.outputMode("update")
       .format("kafka")
       .option("kafka.bootstrap.servers", conf.bootstrapServer())
       .option("topic", conf.outputKafkaTopic())
+      .option("checkpointLocation", conf.checkpointPath())
       .start().awaitTermination()
   }
 

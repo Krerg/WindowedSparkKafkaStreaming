@@ -35,7 +35,13 @@ class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
   }
 
   override def merge(buffer1: MutableAggregationBuffer, buffer2: Row): Unit = {
-      buffer1(0) = buffer1.getMap[String, Int](0) ++ buffer2.getMap[String, Int](0).map{ case (k, v) => k -> (v + buffer1.getMap[String, Int](0).getOrElse(k, 0)) }
+    if(buffer1.getMap[String, Int](0).isEmpty) {
+      buffer1(0) = buffer2.getMap[String, Int](0)
+      return
+    }
+      buffer1(0) = buffer1.getMap[String, Int](0) ++
+        buffer2.getMap[String, Int](0)
+          .map{ case (k, v) => k -> (v + buffer1.getMap[String, Int](0).getOrElse(k, 0)) }
   }
 
   override def evaluate(buffer: Row): String = {
