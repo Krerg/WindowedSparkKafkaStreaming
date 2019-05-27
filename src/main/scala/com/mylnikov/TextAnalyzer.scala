@@ -8,10 +8,9 @@ object TextAnalyzer {
     var findWords: mutable.MutableList[String] = mutable.MutableList[String]()
     for (words <- wordsToSearch) {
       val reg = words.r
-      findWords = (findWords ++ reg.findAllIn(text).toList)
+      findWords = findWords ++ reg.findAllIn(text).toList
     }
     findWords
   }
-
 
 }

@@ -21,8 +21,6 @@ object SparkStreamingKafkaConsumer {
 
     spark.udf.register("gm", new CountBigDataWordsUDAF)
 
-
-
     val df = spark
       .readStream
       .format("kafka")
@@ -30,10 +28,6 @@ object SparkStreamingKafkaConsumer {
       .option("subscribe", conf.inputKafkaTopic())
       .option("startingOffsets", "earliest")
       .load()
-
-    val consoleOutput = df.writeStream
-
-
 
     import spark.sqlContext.implicits._
     import org.apache.spark.sql.functions._
@@ -55,8 +49,6 @@ object SparkStreamingKafkaConsumer {
       .option("kafka.bootstrap.servers", conf.bootstrapServer())
       .option("topic", conf.outputKafkaTopic())
       .start().awaitTermination()
-
   }
-
 
 }
