@@ -10,14 +10,10 @@ object SparkStreamingKafkaConsumer {
     val conf = new Configuration(args)
     conf.verify()
 
-    conf.inputKafkaTopic()
-
     val spark = org.apache.spark.sql.SparkSession.builder
             .master("local[*]")
       .appName("SparkKafkaConsumer")
       .getOrCreate()
-
-    spark.udf.register("gm", new CountBigDataWordsUDAF)
 
     val df = spark
       .readStream
@@ -37,16 +33,20 @@ object SparkStreamingKafkaConsumer {
 
     val udaf = new CountBigDataWordsUDAF
     spark.udf.register("udaf", udaf)
+    // Select key and extracted value
     df.selectExpr("CAST(value AS STRING)", "CAST(timestamp AS TIMESTAMP)")
       .withWatermark("timestamp", "5 minutes")
       .withColumn("value", getTextUdf('value))
-
+      //Group by window
       .groupBy(window('timestamp, "20 second"))
+      // Count each word using UDAF
       .agg(udaf('value).as("WordsCount"))
+      //Build the output
       .selectExpr("CAST(window as STRING)", "WordsCount")
       .withColumn("WordsCount", concat('WordsCount, lit(" Window:"), 'window))
       .selectExpr("CAST(window as String) as key","CAST(WordsCount AS STRING) as value")
 
+      //Write the count to the kafka
       .writeStream.outputMode("update")
       .format("kafka")
       .option("kafka.bootstrap.servers", conf.bootstrapServer())

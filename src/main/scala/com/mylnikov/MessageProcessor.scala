@@ -6,6 +6,11 @@ class MessageProcessor {
 
   val searchWords = Array("big data", "ai", "machine learning", "course")
 
+  /**
+    *
+    * @param text
+    * @return
+    */
   def process(text: String): mutable.Map[String, Int] = {
     val aggregatorMap = mutable.Map[String, Int]()
 

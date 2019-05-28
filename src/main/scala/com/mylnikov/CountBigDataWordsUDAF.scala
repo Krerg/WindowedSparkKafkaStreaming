@@ -6,6 +6,9 @@ import org.apache.spark.sql.types.{MapType, StringType, StructField, StructType,
 
 import scala.collection.mutable
 
+/**
+  *
+  */
 class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
 
   val searchWords = Array("big data", "ai", "machine learning", "course")
@@ -45,6 +48,6 @@ class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
   }
 
   override def evaluate(buffer: Row): String = {
-    return buffer.getMap[String, Int](0).map { case (k, v) => k + ":" + v }.mkString("|")
+    buffer.getMap[String, Int](0).map { case (k, v) => k + ":" + v }.mkString("|")
   }
 }
