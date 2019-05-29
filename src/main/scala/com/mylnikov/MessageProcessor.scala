@@ -7,9 +7,7 @@ class MessageProcessor {
   val searchWords = Array("big data", "ai", "machine learning", "course")
 
   /**
-    *
-    * @param text
-    * @return
+    * For given text counts big data words and return it as map.
     */
   def process(text: String): mutable.Map[String, Int] = {
     val aggregatorMap = mutable.Map[String, Int]()

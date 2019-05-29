@@ -7,7 +7,7 @@ import org.apache.spark.sql.types.{MapType, StringType, StructField, StructType,
 import scala.collection.mutable
 
 /**
-  *
+  * Custom UDAF to aggregate words in the masseges and count big data words.
   */
 class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
 
@@ -16,6 +16,9 @@ class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
   override def inputSchema: org.apache.spark.sql.types.StructType =
     StructType(StructField("value", StringType) :: Nil)
 
+  /**
+    * Initialize buffer schema to store aggregated words.
+    */
   override def bufferSchema: StructType = StructType(
     StructField("aggMap", MapType(StringType, IntegerType)) :: Nil
   )
@@ -30,6 +33,9 @@ class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
     buffer(0) = mutable.Map[String, Integer]()
   }
 
+  /**
+    * Updates the buffer with given message
+    */
   override def update(buffer: MutableAggregationBuffer, input: Row): Unit = {
     TextAnalyzer.getWords(input.getString(0), searchWords)
       .foreach(word => {
@@ -37,6 +43,9 @@ class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
       })
   }
 
+  /**
+    * Merges 2 buffer by sum the words count
+    */
   override def merge(buffer1: MutableAggregationBuffer, buffer2: Row): Unit = {
     if(buffer1.getMap[String, Int](0).isEmpty) {
       buffer1(0) = buffer2.getMap[String, Int](0)
@@ -47,6 +56,9 @@ class CountBigDataWordsUDAF extends UserDefinedAggregateFunction {
           .map{ case (k, v) => k -> (v + buffer1.getMap[String, Int](0).getOrElse(k, 0)) }
   }
 
+  /**
+    * Returns the string representation of buffer (eg. 'bigdata:5|ai:7')
+    */
   override def evaluate(buffer: Row): String = {
     buffer.getMap[String, Int](0).map { case (k, v) => k + ":" + v }.mkString("|")
   }

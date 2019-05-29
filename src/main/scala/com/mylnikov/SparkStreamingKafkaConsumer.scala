@@ -35,7 +35,7 @@ object SparkStreamingKafkaConsumer {
     spark.udf.register("udaf", udaf)
     // Select key and extracted value
     df.selectExpr("CAST(value AS STRING)", "CAST(timestamp AS TIMESTAMP)")
-      .withWatermark("timestamp", "5 minutes")
+      .withWatermark("timestamp", "60 minutes")
       .withColumn("value", getTextUdf('value))
       //Group by window
       .groupBy(window('timestamp, "20 second"))
