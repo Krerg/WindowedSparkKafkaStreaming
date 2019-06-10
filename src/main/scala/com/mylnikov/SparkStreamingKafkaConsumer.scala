@@ -1,9 +1,16 @@
 package com.mylnikov
 
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.Input
+import com.mylnikov.model.Message
 import org.json4s.JObject
 import org.json4s.jackson.JsonMethods
 
 object SparkStreamingKafkaConsumer {
+
+  val kryo = new Kryo()
+  kryo.setRegistrationRequired(true)
+  kryo.register(classOf[Message])
 
   def main(args: Array[String]): Unit = {
 
@@ -11,7 +18,6 @@ object SparkStreamingKafkaConsumer {
     conf.verify()
 
     val spark = org.apache.spark.sql.SparkSession.builder
-            .master("local[*]")
       .appName("SparkKafkaConsumer")
       .getOrCreate()
 
@@ -27,6 +33,11 @@ object SparkStreamingKafkaConsumer {
     import spark.sqlContext.implicits._
     import org.apache.spark.sql.functions._
     val getText: String => String = JsonMethods.parse(_).asInstanceOf[JObject].values.getOrElse("text", "").toString
+    val getTextKryo = (msg :String) => {
+      val input = new Input(msg.getBytes)
+      kryo.readObject(input, classOf[Message]).text
+    }
+
     val getTextUdf = udf(getText)
 
     val messageProcessor = new MessageProcessor()

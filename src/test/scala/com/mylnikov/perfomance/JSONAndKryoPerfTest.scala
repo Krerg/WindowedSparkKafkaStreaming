@@ -37,7 +37,7 @@ class JSONAndKryoPerfTest extends FunSuite with BeforeAndAfter {
     for(i <- 1 to 3000000) {
       kryo.writeObject(output, testObject)
       output.flush()
-      input.setInputStream(new ByteArrayInputStream(output.getBuffer()))
+      input.setInputStream(new ByteArrayInputStream(output.getBuffer))
       val deserializedObject = kryo.readObject(input, classOf[Message])
       assert(deserializedObject != null)
       baos.reset()
